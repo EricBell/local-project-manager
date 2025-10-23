@@ -257,6 +257,47 @@ def scan_for_projects(
     """
     projects = []
 
+    # First, check if the scan_path itself is a project
+    if is_project_directory(scan_path):
+        has_git, git_remote, git_status = get_git_info(scan_path)
+        readme_path = find_readme(scan_path)
+        project_type = detect_project_type(scan_path)
+        last_modified = get_last_modified(scan_path)
+        size_mb = get_directory_size(scan_path)
+
+        classification = classify_project(
+            last_modified=last_modified,
+            has_git_remote=git_remote is not None,
+            has_readme=readme_path is not None,
+            active_threshold=active_threshold,
+            dormant_threshold=dormant_threshold,
+        )
+
+        prunable = is_prunable(
+            classification=classification,
+            has_git_remote=git_remote is not None,
+            size_mb=size_mb,
+            min_size_mb=prunable_min_size_mb,
+            max_size_mb=prunable_max_size_mb,
+        )
+
+        project = Project(
+            path=scan_path,
+            name=scan_path.name,
+            has_git=has_git,
+            git_remote=git_remote,
+            git_status=git_status,
+            readme_path=readme_path,
+            project_type=project_type,
+            last_modified=last_modified,
+            size_mb=size_mb,
+            classification=classification,
+            is_prunable=prunable,
+        )
+
+        projects.append(project)
+
+    # Now scan subdirectories
     try:
         for entry in os.scandir(scan_path):
             if not entry.is_dir(follow_symlinks=False):
