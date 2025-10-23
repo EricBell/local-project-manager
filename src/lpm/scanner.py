@@ -63,6 +63,7 @@ def should_ignore_directory(dir_name: str, ignore_patterns: List[str]) -> bool:
 def get_directory_size(path: Path) -> float:
     """
     Calculate total size of directory in MB.
+    Skips common heavy directories to improve performance.
 
     Args:
         path: Path to directory
@@ -70,10 +71,20 @@ def get_directory_size(path: Path) -> float:
     Returns:
         Size in megabytes
     """
+    # Directories to skip for performance (they can be huge)
+    SKIP_DIRS = {
+        "node_modules", ".git", ".venv", "venv", "env", "__pycache__",
+        ".pytest_cache", "target", "build", "dist", ".next", ".nuxt",
+        ".gradle", ".idea", "vendor", ".terraform", ".cargo"
+    }
+
     total_size = 0
 
     try:
         for dirpath, dirnames, filenames in os.walk(path):
+            # Remove skip directories from the walk in-place
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+
             for filename in filenames:
                 filepath = Path(dirpath) / filename
                 try:
@@ -91,6 +102,7 @@ def get_directory_size(path: Path) -> float:
 def get_last_modified(path: Path) -> datetime:
     """
     Get the most recent modification time in directory tree.
+    Skips common heavy directories to improve performance.
 
     Args:
         path: Path to directory
@@ -98,10 +110,20 @@ def get_last_modified(path: Path) -> datetime:
     Returns:
         datetime of most recent modification
     """
+    # Directories to skip for performance (they can be huge)
+    SKIP_DIRS = {
+        "node_modules", ".git", ".venv", "venv", "env", "__pycache__",
+        ".pytest_cache", "target", "build", "dist", ".next", ".nuxt",
+        ".gradle", ".idea", "vendor", ".terraform", ".cargo"
+    }
+
     most_recent = datetime.fromtimestamp(path.stat().st_mtime)
 
     try:
         for dirpath, dirnames, filenames in os.walk(path):
+            # Remove skip directories from the walk in-place
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
+
             # Check directory modification time
             dir_path = Path(dirpath)
             try:
@@ -263,8 +285,6 @@ def scan_for_projects(
 
     # First, check if the scan_path itself is a project (only on initial call)
     if _check_root and is_project_directory(scan_path):
-        if progress_callback:
-            progress_callback(scan_path, 0)
         has_git, git_remote, git_status = get_git_info(scan_path)
         readme_path = find_readme(scan_path)
         project_type = detect_project_type(scan_path)
@@ -303,6 +323,10 @@ def scan_for_projects(
 
         projects.append(project)
 
+        # Report progress after finding a project
+        if progress_callback:
+            progress_callback(scan_path, len(projects))
+
     # Now scan subdirectories
     try:
         for entry in os.scandir(scan_path):
@@ -315,10 +339,6 @@ def scan_for_projects(
             # Skip ignored directories
             if should_ignore_directory(dir_name, ignore_patterns):
                 continue
-
-            # Report progress for this directory
-            if progress_callback:
-                progress_callback(dir_path, len(projects))
 
             # Check if this directory is a project
             if is_project_directory(dir_path):
@@ -362,6 +382,10 @@ def scan_for_projects(
                 )
 
                 projects.append(project)
+
+                # Report progress after finding a project
+                if progress_callback:
+                    progress_callback(dir_path, len(projects))
 
             # Recursively scan subdirectories (pass _check_root=False to avoid duplicate detection)
             sub_projects = scan_for_projects(

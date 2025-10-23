@@ -212,7 +212,8 @@ class LocalProjectManagerApp(App):
         def progress_callback(current_path: Path, project_count: int) -> None:
             if not self.initial_scan_done:
                 # Show progress in console before TUI appears
-                print(f"\rScanning: {current_path} (found {project_count} projects)", end="")
+                # Use newline instead of carriage return so paths stay visible
+                print(f"  [{project_count}] {current_path}")
                 sys.stdout.flush()
 
         # Scan for projects
