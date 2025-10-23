@@ -31,7 +31,7 @@ Local Project Manager is a **Python TUI (Text User Interface) application** buil
 - Scan current directory and all subdirectories recursively
 - Support user-specified starting directory
 - Async scanning for performance with large directory trees
-- Progress indicator during scan
+- Progress indicator during scan (see section 3.4 for launch progress details)
 
 **1.2 Project Identification Signals**
 
@@ -144,6 +144,37 @@ Automatically classify projects based on combined signals:
 - **Status indicators**: Use Unicode symbols (✓✗⚡⚠) for quick scanning
 - **Responsive**: Adapt to terminal width (min 80 columns recommended)
 - **Accessibility**: Support no-color mode for accessibility
+
+**3.4 Launch Progress Indicator**
+
+**Problem**: During initial launch, the app can take several seconds (or longer for large directory trees) to scan for projects before the TUI appears. With no feedback, users may think the app has hung or failed to start.
+
+**Requirement**: Display a simple text-based progress indicator immediately upon launch, before the Textual TUI loads.
+
+**What to Display**:
+- Simple console output showing scanning activity
+- Options (choose one or combine):
+  - Directory paths being scanned: `Scanning: /path/to/folder`
+  - Running project count: `Found 23 projects...`
+  - Simple status: `Scanning for projects...` followed by `Found 47 projects. Loading UI...`
+
+**Technical Notes**:
+- This is **pre-TUI** output using standard `print()` statements
+- Appears immediately when user runs `uv run python main.py` or `uv run lpm`
+- Should not interfere with Textual's terminal initialization
+- Keep it minimal to avoid cluttering terminal history
+- Clear or overwrite progress lines before TUI takes over (if terminal supports it)
+
+**Example User Experience**:
+```bash
+$ uv run lpm
+Scanning /home/user/projects for projects...
+Scanning: /home/user/projects/site2pdf
+Scanning: /home/user/projects/local-project-manager
+Scanning: /home/user/projects/old-experiments
+Found 47 projects. Loading UI...
+[TUI appears]
+```
 
 ### 4. README Management
 
