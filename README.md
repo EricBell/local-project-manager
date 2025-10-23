@@ -1,14 +1,42 @@
-# local-project-manager
-Helps identify projects, manage them and prune ones you don't want any more.
+# Local Project Manager
 
-# PRD
-1. TUI app written in Python and textual.
-2. Scans the current directory and subdirectories (or any directory you indicate and subdirectories).
-3. Looks for README files (.md, .txt).
-4. Shows a list of all the README files and their pathes.
-5. Show a lit of all the project paths without README files.
-6. Existing README files can be viewed in a scrolling/paging pane as well as edited and deleted.
-7. If README file does not existing in a directory one can be created.
-8. Has a configurable list of directories to ignore. Initial list are all node_modules directories.
-9. Other directories to ignore are subprojects e.g. if the top level directory is site2pdf and it contains libraries like version/ and todo/ which each have READMEs these subprojecs can be ignored if directed to.
+A Python TUI (Text User Interface) application for discovering, organizing, and managing local project directories.
 
+## Status
+
+⚠️ **In Development** - This project is in early planning stages. No implementation code exists yet.
+
+## What It Does
+
+Local Project Manager scans your filesystem to help you:
+
+- **Discover projects** by finding README files (.md, .txt) across directory trees
+- **Identify undocumented projects** that lack README files
+- **View and edit** existing README files in a scrolling pane
+- **Create READMEs** for undocumented projects
+- **Prune unwanted projects** you no longer need
+
+## Planned Features
+
+- Recursive directory scanning (configurable root directory)
+- Smart filtering with configurable ignore lists (node_modules, etc.)
+- Subproject exclusion to avoid duplicate listings
+- Interactive TUI built with Textual
+- README viewing, editing, creation, and deletion
+
+## Installation
+
+Coming soon.
+
+## Usage
+
+Coming soon.
+
+## Documentation
+
+- [PRD.md](PRD.md) - Detailed product requirements
+- [CLAUDE.md](CLAUDE.md) - Development guidance for AI assistants
+
+## License
+
+See [LICENSE](LICENSE) for details.
