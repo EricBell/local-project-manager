@@ -240,6 +240,7 @@ def scan_for_projects(
     dormant_threshold: int = 180,
     prunable_min_size_mb: float = 10.0,
     prunable_max_size_mb: float = 1.0,
+    _check_root: bool = True,
 ) -> List[Project]:
     """
     Recursively scan directory for projects.
@@ -251,14 +252,15 @@ def scan_for_projects(
         dormant_threshold: Days for dormant classification
         prunable_min_size_mb: Min size for pruning candidates
         prunable_max_size_mb: Max size for tiny experiments
+        _check_root: Internal param to check scan_path itself (only on initial call)
 
     Returns:
         List of detected Project objects
     """
     projects = []
 
-    # First, check if the scan_path itself is a project
-    if is_project_directory(scan_path):
+    # First, check if the scan_path itself is a project (only on initial call)
+    if _check_root and is_project_directory(scan_path):
         has_git, git_remote, git_status = get_git_info(scan_path)
         readme_path = find_readme(scan_path)
         project_type = detect_project_type(scan_path)
@@ -353,7 +355,7 @@ def scan_for_projects(
 
                 projects.append(project)
 
-            # Recursively scan subdirectories
+            # Recursively scan subdirectories (pass _check_root=False to avoid duplicate detection)
             sub_projects = scan_for_projects(
                 scan_path=dir_path,
                 ignore_patterns=ignore_patterns,
@@ -361,6 +363,7 @@ def scan_for_projects(
                 dormant_threshold=dormant_threshold,
                 prunable_min_size_mb=prunable_min_size_mb,
                 prunable_max_size_mb=prunable_max_size_mb,
+                _check_root=False,
             )
             projects.extend(sub_projects)
 
