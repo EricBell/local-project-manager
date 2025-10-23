@@ -173,6 +173,7 @@ class LocalProjectManagerApp(App):
         self.projects: list[Project] = []
         self.current_filter = "all"
         self.scan_path = Path.cwd()
+        self.initial_scan_done = False
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -207,6 +208,13 @@ class LocalProjectManagerApp(App):
         summary = self.query_one("#summary", Label)
         summary.update("Scanning for projects...")
 
+        # Progress callback for initial scan only (pre-TUI)
+        def progress_callback(current_path: Path, project_count: int) -> None:
+            if not self.initial_scan_done:
+                # Show progress in console before TUI appears
+                print(f"\rScanning: {current_path} (found {project_count} projects)", end="")
+                sys.stdout.flush()
+
         # Scan for projects
         ignore_patterns = self.config.load_ignore_patterns(self.scan_path)
         self.projects = scan_for_projects(
@@ -216,7 +224,14 @@ class LocalProjectManagerApp(App):
             dormant_threshold=self.config.classification.dormant_days_threshold,
             prunable_min_size_mb=self.config.classification.prunable_min_size_mb,
             prunable_max_size_mb=self.config.classification.prunable_max_size_mb,
+            progress_callback=progress_callback if not self.initial_scan_done else None,
         )
+
+        # Mark initial scan as complete
+        if not self.initial_scan_done:
+            print(f"\nFound {len(self.projects)} projects. Loading UI...")
+            sys.stdout.flush()
+            self.initial_scan_done = True
 
         # Apply current filter and populate table
         self.update_table()
@@ -487,10 +502,14 @@ Note: This is a TUI application. Press Ctrl+C to exit if needed, then run 'reset
 
     args = parser.parse_args()
 
+    # Show pre-TUI scanning progress
+    from pathlib import Path
+    scan_path = Path(args.path).resolve() if args.path else Path.cwd()
+    print(f"Scanning {scan_path} for projects...")
+    sys.stdout.flush()
+
     app = LocalProjectManagerApp()
-    if args.path:
-        from pathlib import Path
-        app.scan_path = Path(args.path).resolve()
+    app.scan_path = scan_path
 
     try:
         app.run()

@@ -3,7 +3,7 @@
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import List
+from typing import Callable, List, Optional
 
 from .git_utils import get_git_info
 from .project import Classification, Project, ProjectType
@@ -241,6 +241,7 @@ def scan_for_projects(
     prunable_min_size_mb: float = 10.0,
     prunable_max_size_mb: float = 1.0,
     _check_root: bool = True,
+    progress_callback: Optional[Callable[[Path, int], None]] = None,
 ) -> List[Project]:
     """
     Recursively scan directory for projects.
@@ -253,6 +254,7 @@ def scan_for_projects(
         prunable_min_size_mb: Min size for pruning candidates
         prunable_max_size_mb: Max size for tiny experiments
         _check_root: Internal param to check scan_path itself (only on initial call)
+        progress_callback: Optional callback function(current_path, project_count) for progress updates
 
     Returns:
         List of detected Project objects
@@ -261,6 +263,8 @@ def scan_for_projects(
 
     # First, check if the scan_path itself is a project (only on initial call)
     if _check_root and is_project_directory(scan_path):
+        if progress_callback:
+            progress_callback(scan_path, 0)
         has_git, git_remote, git_status = get_git_info(scan_path)
         readme_path = find_readme(scan_path)
         project_type = detect_project_type(scan_path)
@@ -311,6 +315,10 @@ def scan_for_projects(
             # Skip ignored directories
             if should_ignore_directory(dir_name, ignore_patterns):
                 continue
+
+            # Report progress for this directory
+            if progress_callback:
+                progress_callback(dir_path, len(projects))
 
             # Check if this directory is a project
             if is_project_directory(dir_path):
@@ -364,6 +372,7 @@ def scan_for_projects(
                 prunable_min_size_mb=prunable_min_size_mb,
                 prunable_max_size_mb=prunable_max_size_mb,
                 _check_root=False,
+                progress_callback=progress_callback,
             )
             projects.extend(sub_projects)
 

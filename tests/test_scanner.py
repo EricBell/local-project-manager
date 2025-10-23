@@ -369,3 +369,47 @@ class TestScanForProjects:
             project_names = {p.name for p in projects}
             assert "parent" in project_names
             assert "child" in project_names
+
+    def test_scan_with_progress_callback(self):
+        """Test that progress callback is called during scanning."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            # Create multiple projects
+            for i in range(3):
+                project_path = Path(tmpdir) / f"project-{i}"
+                project_path.mkdir()
+                (project_path / "README.md").write_text(f"# Project {i}")
+
+            # Track progress callback invocations
+            callback_calls = []
+
+            def progress_callback(current_path: Path, project_count: int):
+                callback_calls.append((str(current_path), project_count))
+
+            projects = scan_for_projects(
+                Path(tmpdir),
+                ignore_patterns=[],
+                progress_callback=progress_callback
+            )
+
+            # Progress callback should have been called
+            assert len(callback_calls) > 0
+            assert len(projects) == 3
+
+            # Check that callback received valid paths and counts
+            for path, count in callback_calls:
+                assert isinstance(path, str)
+                assert isinstance(count, int)
+                assert count >= 0
+
+    def test_scan_without_progress_callback(self):
+        """Test that scanning works without progress callback."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            project_path = Path(tmpdir) / "project"
+            project_path.mkdir()
+            (project_path / "README.md").write_text("# Project")
+
+            # Should work fine with no progress_callback
+            projects = scan_for_projects(Path(tmpdir), ignore_patterns=[])
+
+            assert len(projects) == 1
+            assert projects[0].name == "project"
