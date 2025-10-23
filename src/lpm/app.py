@@ -305,7 +305,7 @@ class LocalProjectManagerApp(App):
             return None
 
         row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
-        project_path = Path(row_key)
+        project_path = Path(row_key.value)
 
         for project in self.projects:
             if project.path == project_path:
