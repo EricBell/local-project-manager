@@ -145,36 +145,73 @@ Automatically classify projects based on combined signals:
 - **Responsive**: Adapt to terminal width (min 80 columns recommended)
 - **Accessibility**: Support no-color mode for accessibility
 
-**3.4 Launch Progress Indicator**
+**3.4 Two-Phase Launch Experience**
 
-**Problem**: During initial launch, the app can take several seconds (or longer for large directory trees) to scan for projects before the TUI appears. With no feedback, users may think the app has hung or failed to start.
+**Problem**: Large directory scans can take significant time (seconds to minutes), and users need visibility into what's being found before committing to the TUI interface. Without feedback, users may think the app has hung or failed to start.
 
-**Requirement**: Display a simple text-based progress indicator immediately upon launch, before the Textual TUI loads.
+**Solution**: Separate the scan phase from the TUI phase with explicit user control and comprehensive scan results display.
 
-**What to Display**:
-- Simple console output showing scanning activity
-- Options (choose one or combine):
-  - Directory paths being scanned: `Scanning: /path/to/folder`
-  - Running project count: `Found 23 projects...`
-  - Simple status: `Scanning for projects...` followed by `Found 47 projects. Loading UI...`
+**Phase 1: Pre-TUI Scan & Results**
+
+The application performs a complete scan and displays results in the terminal before launching the TUI:
+
+```bash
+$ uv run lpm --path ..
+Local Project Manager - Scanning for projects...
+Scan path: /parent/directory
+
+  [1] /parent/directory/project-a
+  [2] /parent/directory/workspace/nested-project
+  [3] /parent/directory/experiments/old-stuff
+  ...
+  [47] /parent/directory/final-project
+
+Scan complete! Found 47 projects.
+
+Projects with READMEs (23):
+  • /parent/directory/project-a/README.md
+  • /parent/directory/workspace/nested-project/README.md
+  • /parent/directory/documentation-site/README.txt
+  ...
+
+Projects without READMEs (24):
+  • /parent/directory/experiments/old-stuff
+  • /parent/directory/temp-workspace
+  ...
+
+Press ENTER to launch TUI, or 'q' to quit: _
+```
+
+**What is Displayed**:
+1. **Header**: Application name and scan path
+2. **Live Progress**: Each project found is displayed with an incrementing counter
+3. **Completion Summary**: Total project count
+4. **README Report**:
+   - List of all projects WITH README files (showing full README path)
+   - List of all projects WITHOUT README files
+5. **User Prompt**: Wait for ENTER to continue or 'q' to quit
+
+**Phase 2: TUI Launch**
+
+- Only launches after user presses ENTER
+- Uses pre-scanned project data (no re-scanning needed)
+- Normal interactive interface as documented in section 3.1
+- User can still refresh within TUI if needed (via 'r' key)
+
+**Benefits**:
+- **Transparency**: User sees exactly what's being scanned in real-time
+- **Verification**: Can review results before committing to TUI
+- **Abort Capability**: Can Ctrl+C during scan if it's taking too long
+- **README Visibility**: Full README paths displayed immediately (addresses core use case)
+- **Performance Feedback**: Clear indication of scan progress and completion
+- **User Control**: Explicit choice to proceed or quit
 
 **Technical Notes**:
 - This is **pre-TUI** output using standard `print()` statements
 - Appears immediately when user runs `uv run python main.py` or `uv run lpm`
-- Should not interfere with Textual's terminal initialization
-- Keep it minimal to avoid cluttering terminal history
-- Clear or overwrite progress lines before TUI takes over (if terminal supports it)
-
-**Example User Experience**:
-```bash
-$ uv run lpm
-Scanning /home/user/projects for projects...
-Scanning: /home/user/projects/site2pdf
-Scanning: /home/user/projects/local-project-manager
-Scanning: /home/user/projects/old-experiments
-Found 47 projects. Loading UI...
-[TUI appears]
-```
+- Scan happens completely before Textual initialization
+- No terminal cleanup needed between phases
+- Pre-scanned project data is passed to TUI app (no duplicate scanning)
 
 ### 4. README Management
 

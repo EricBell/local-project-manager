@@ -167,13 +167,12 @@ class LocalProjectManagerApp(App):
         Binding("?", "help", "Help"),
     ]
 
-    def __init__(self):
+    def __init__(self, scan_path: Path, projects: list[Project]):
         super().__init__()
         self.config = Config.load()
-        self.projects: list[Project] = []
+        self.projects: list[Project] = projects
         self.current_filter = "all"
-        self.scan_path = Path.cwd()
-        self.initial_scan_done = False
+        self.scan_path = scan_path
 
     def compose(self) -> ComposeResult:
         """Create child widgets."""
@@ -195,8 +194,8 @@ class LocalProjectManagerApp(App):
         # Add columns
         table.add_columns("Name", "Type", "Git", "Remote", "Age", "Size", "Status")
 
-        # Scan for projects
-        self.action_refresh()
+        # Populate table with pre-scanned projects
+        self.update_table()
 
     def action_refresh(self) -> None:
         """Refresh the project list."""
@@ -208,15 +207,7 @@ class LocalProjectManagerApp(App):
         summary = self.query_one("#summary", Label)
         summary.update("Scanning for projects...")
 
-        # Progress callback for initial scan only (pre-TUI)
-        def progress_callback(current_path: Path, project_count: int) -> None:
-            if not self.initial_scan_done:
-                # Show progress in console before TUI appears
-                # Use newline instead of carriage return so paths stay visible
-                print(f"  [{project_count}] {current_path}")
-                sys.stdout.flush()
-
-        # Scan for projects
+        # Scan for projects (no progress callback for in-TUI refresh)
         ignore_patterns = self.config.load_ignore_patterns(self.scan_path)
         self.projects = scan_for_projects(
             scan_path=self.scan_path,
@@ -225,14 +216,8 @@ class LocalProjectManagerApp(App):
             dormant_threshold=self.config.classification.dormant_days_threshold,
             prunable_min_size_mb=self.config.classification.prunable_min_size_mb,
             prunable_max_size_mb=self.config.classification.prunable_max_size_mb,
-            progress_callback=progress_callback if not self.initial_scan_done else None,
+            progress_callback=None,
         )
-
-        # Mark initial scan as complete
-        if not self.initial_scan_done:
-            print(f"\nFound {len(self.projects)} projects. Loading UI...")
-            sys.stdout.flush()
-            self.initial_scan_done = True
 
         # Apply current filter and populate table
         self.update_table()
@@ -462,6 +447,67 @@ class LocalProjectManagerApp(App):
         self.push_screen(ReadmeViewer(help_text, "Help"))
 
 
+def display_scan_results(projects: list[Project]) -> None:
+    """Display scan results in terminal before TUI launch."""
+    print(f"\nScan complete! Found {len(projects)} projects.")
+
+    # Split projects by README presence
+    with_readme = [p for p in projects if p.readme_path is not None]
+    without_readme = [p for p in projects if p.readme_path is None]
+
+    if with_readme:
+        print(f"\nProjects with READMEs ({len(with_readme)}):")
+        for project in sorted(with_readme, key=lambda p: str(p.path)):
+            print(f"  • {project.readme_path}")
+
+    if without_readme:
+        print(f"\nProjects without READMEs ({len(without_readme)}):")
+        for project in sorted(without_readme, key=lambda p: str(p.path)):
+            print(f"  • {project.path}")
+
+    print()  # Empty line for readability
+
+
+def wait_for_user_input() -> bool:
+    """Wait for user to press ENTER or 'q'. Returns True to continue, False to quit."""
+    # Check if stdin is a tty (interactive)
+    if not sys.stdin.isatty():
+        # Non-interactive mode (piped input, etc.) - proceed automatically
+        print("Non-interactive mode detected. Launching TUI...")
+        return True
+
+    try:
+        import termios
+        import tty
+
+        print("Press ENTER to launch TUI, or 'q' to quit: ", end='', flush=True)
+
+        # Get single character input without waiting for enter
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            char = sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+        print()  # New line after input
+
+        if char.lower() == 'q':
+            return False
+        # Accept enter (newline) or any other key to continue
+        return True
+
+    except (ImportError, AttributeError, OSError):
+        # Fallback for Windows or systems without termios, or non-tty
+        try:
+            response = input("Press ENTER to launch TUI, or 'q' to quit: ").strip().lower()
+            return response != 'q'
+        except (EOFError, OSError):
+            # Can't get input, proceed anyway
+            return True
+
+
 def main():
     """Entry point for the application."""
     import argparse
@@ -503,14 +549,50 @@ Note: This is a TUI application. Press Ctrl+C to exit if needed, then run 'reset
 
     args = parser.parse_args()
 
-    # Show pre-TUI scanning progress
+    # Phase 1: Pre-TUI Scan
     from pathlib import Path
     scan_path = Path(args.path).resolve() if args.path else Path.cwd()
-    print(f"Scanning {scan_path} for projects...")
+
+    print("Local Project Manager - Scanning for projects...")
+    print(f"Scan path: {scan_path}\n")
     sys.stdout.flush()
 
-    app = LocalProjectManagerApp()
-    app.scan_path = scan_path
+    # Progress callback to show scanning progress
+    def progress_callback(current_path: Path, project_count: int) -> None:
+        print(f"  [{project_count}] {current_path}")
+        sys.stdout.flush()
+
+    # Perform the scan
+    config = Config.load()
+    ignore_patterns = config.load_ignore_patterns(scan_path)
+
+    try:
+        projects = scan_for_projects(
+            scan_path=scan_path,
+            ignore_patterns=ignore_patterns,
+            active_threshold=config.classification.active_days_threshold,
+            dormant_threshold=config.classification.dormant_days_threshold,
+            prunable_min_size_mb=config.classification.prunable_min_size_mb,
+            prunable_max_size_mb=config.classification.prunable_max_size_mb,
+            progress_callback=progress_callback,
+        )
+    except KeyboardInterrupt:
+        print("\n\nScan cancelled by user.")
+        return
+    except Exception as e:
+        print(f"\n\nError during scan: {e}", file=sys.stderr)
+        return
+
+    # Display results
+    display_scan_results(projects)
+
+    # Wait for user input
+    if not wait_for_user_input():
+        print("Exiting without launching TUI.")
+        return
+
+    # Phase 2: Launch TUI with pre-scanned data
+    app = LocalProjectManagerApp(scan_path, projects)
 
     try:
         app.run()
