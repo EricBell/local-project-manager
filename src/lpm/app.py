@@ -10,6 +10,7 @@ from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container, Horizontal, Vertical, VerticalScroll
+from textual.events import Key
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Label, Static
 
@@ -445,6 +446,23 @@ class LocalProjectManagerApp(App):
   q - Quit application
 """
         self.push_screen(ReadmeViewer(help_text, "Help"))
+
+    def on_key(self, event: Key) -> None:
+        """Handle key events for application shortcuts."""
+        key_to_action = {
+            "v": self.action_view_readme,
+            "c": self.action_create_readme,
+            "d": self.action_delete_readme,
+            "p": self.action_prune_project,
+            "o": self.action_open_vscode,
+            "f": self.action_cycle_filter,
+            "r": self.action_refresh,
+            "question_mark": self.action_help,
+        }
+
+        if event.key in key_to_action:
+            key_to_action[event.key]()
+            event.prevent_default()
 
 
 def display_scan_results(projects: list[Project]) -> None:
