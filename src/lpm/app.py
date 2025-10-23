@@ -181,7 +181,7 @@ class LocalProjectManagerApp(App):
             Label("Loading projects...", id="summary"),
             Label("Filter: All Projects", id="filter-bar"),
             DataTable(),
-            Label("Actions: [V]iew [C]reate [D]elete README | [P]rune | [O]pen in VS Code | [R]efresh | [Q]uit", id="actions"),
+            Label("Actions: [b]\\[V][/b]iew [b]\\[C][/b]reate [b]\\[D][/b]elete README | [b]\\[P][/b]rune | [b]\\[O][/b]pen in VS Code | [b]\\[R][/b]efresh | [b]\\[Q][/b]uit", id="actions"),
             id="main"
         )
         yield Footer()
