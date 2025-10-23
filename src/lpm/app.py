@@ -304,7 +304,7 @@ class LocalProjectManagerApp(App):
         if table.row_count == 0:
             return None
 
-        row_key = table.get_row_at(table.cursor_row)[0]
+        row_key, _ = table.coordinate_to_cell_key(table.cursor_coordinate)
         project_path = Path(row_key)
 
         for project in self.projects:
@@ -447,22 +447,6 @@ class LocalProjectManagerApp(App):
 """
         self.push_screen(ReadmeViewer(help_text, "Help"))
 
-    def on_key(self, event: Key) -> None:
-        """Handle key events for application shortcuts."""
-        key_to_action = {
-            "v": self.action_view_readme,
-            "c": self.action_create_readme,
-            "d": self.action_delete_readme,
-            "p": self.action_prune_project,
-            "o": self.action_open_vscode,
-            "f": self.action_cycle_filter,
-            "r": self.action_refresh,
-            "question_mark": self.action_help,
-        }
-
-        if event.key in key_to_action:
-            key_to_action[event.key]()
-            event.prevent_default()
 
 
 def display_scan_results(projects: list[Project]) -> None:
