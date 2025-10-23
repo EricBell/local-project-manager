@@ -298,6 +298,10 @@ class LocalProjectManagerApp(App):
         if table.cursor_row is None or table.cursor_row < 0:
             return None
 
+        # Check if table has any rows
+        if table.row_count == 0:
+            return None
+
         row_key = table.get_row_at(table.cursor_row)[0]
         project_path = Path(row_key)
 
